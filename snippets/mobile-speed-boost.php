@@ -100,3 +100,15 @@ add_filter( 'wp_inline_script_attributes', function ( $attributes, $javascript )
 	}
 	return $attributes;
 }, 10, 2 );
+
+/* 5. Safety net: if the visitor hasn't scrolled or tapped within 5 s of the page
+ *    finishing loading, load the delayed scripts anyway (Tag Manager with Apollo and
+ *    Salespanel, reCAPTCHA), so visitors who only read are still tracked.
+ *    Keep Site Kit's Google tag (googletagmanager.com/gtag/js) OUT of LiteSpeed's
+ *    "JS Delayed Includes": CookieYes blocks it until consent, which stops LiteSpeed
+ *    from loading anything queued after it (including reCAPTCHA). */
+add_action( 'wp_footer', function () {
+	echo '<script data-no-optimize="1">(function(){var d=false,ev=window.litespeed_ui_events||["mouseover","click","keydown","wheel","touchmove","touchstart","pointerup","pointerdown"];'
+		. 'ev.forEach(function(e){window.addEventListener(e,function(){d=true},{passive:true,once:true})});'
+		. 'window.addEventListener("load",function(){setTimeout(function(){if(!d&&typeof litespeed_load_delayed_js_force==="function"){d=true;litespeed_load_delayed_js_force()}},5000)})})();</script>' . "\n";
+}, 99 );
