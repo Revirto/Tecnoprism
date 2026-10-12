@@ -90,3 +90,13 @@ add_action( 'wp_print_styles', function () {
 		}
 	}
 }, 999 );
+
+/* 4. Google Tag Manager (added by Site Kit): wait for the visitor's first scroll/tap.
+ *    LiteSpeed's "JS Delayed Includes" doesn't catch this snippet, so mark it here.
+ *    LiteSpeed's delay loader runs every script of this type on first interaction. */
+add_filter( 'wp_inline_script_attributes', function ( $attributes, $javascript ) {
+	if ( ! is_admin() && false !== strpos( $javascript, 'googletagmanager.com/gtm.js' ) ) {
+		$attributes['type'] = 'litespeed/javascript';
+	}
+	return $attributes;
+}, 10, 2 );
