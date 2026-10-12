@@ -10,10 +10,30 @@
  */
 
 /* 1. Hero image: start downloading it immediately on phones/tablets (homepage only).
- *    On desktop the first thing painted is the heading, so it is left alone there. */
+ *    On desktop the first thing painted is the heading, so it is left alone there.
+ *    Phones (up to 575px wide) get a cropped 760px-wide copy (43 KB instead of 78 KB) once
+ *    "tecnoprism-hero-mobile.webp" is uploaded to the Media Library; until then nothing changes. */
+function tp_hero_mobile_url() {
+	static $url = null;
+	if ( null === $url ) {
+		$ids = get_posts( array( 'post_type' => 'attachment', 'name' => 'tecnoprism-hero-mobile', 'posts_per_page' => 1, 'fields' => 'ids' ) );
+		$url = $ids ? (string) wp_get_attachment_url( $ids[0] ) : '';
+	}
+	return $url;
+}
+
 add_action( 'wp_head', function () {
-	if ( is_front_page() ) {
-		echo '<link rel="preload" as="image" fetchpriority="high" media="(max-width: 1024px)" href="https://tecnoprism.com/wp-content/uploads/2026/05/Tecnoprism-homepage-1-1-1.webp">' . "\n";
+	if ( ! is_front_page() ) {
+		return;
+	}
+	$desktop = 'https://tecnoprism.com/wp-content/uploads/2026/05/Tecnoprism-homepage-1-1-1.webp';
+	$mobile  = tp_hero_mobile_url();
+	if ( $mobile ) {
+		echo '<link rel="preload" as="image" fetchpriority="high" media="(max-width: 575px)" href="' . esc_url( $mobile ) . '">' . "\n";
+		echo '<link rel="preload" as="image" fetchpriority="high" media="(min-width: 576px) and (max-width: 1024px)" href="' . $desktop . '">' . "\n";
+		echo '<style>@media (max-width:575px){.elementor-12359 .elementor-element.elementor-element-6751522{background-image:url(' . esc_url( $mobile ) . ')!important}}</style>' . "\n";
+	} else {
+		echo '<link rel="preload" as="image" fetchpriority="high" media="(max-width: 1024px)" href="' . $desktop . '">' . "\n";
 	}
 }, 1 );
 
@@ -112,3 +132,30 @@ add_action( 'wp_footer', function () {
 		. 'ev.forEach(function(e){window.addEventListener(e,function(){d=true},{passive:true,once:true})});'
 		. 'window.addEventListener("load",function(){setTimeout(function(){if(!d&&typeof litespeed_load_delayed_js_force==="function"){d=true;litespeed_load_delayed_js_force()}},5000)})})();</script>' . "\n";
 }, 99 );
+
+/* 6. Homepage only: drop TweenMax (GSAP 2, 37 KB). Nothing on the page uses it, and the
+ *    GSAP 3 file the theme also loads provides the same names if anything asks for them. */
+add_action( 'wp_enqueue_scripts', function () {
+	if ( is_front_page() ) {
+		wp_deregister_script( 'pxl-tweenmax' );
+		wp_register_script( 'pxl-tweenmax', false );
+	}
+}, 999 );
+
+/* 7. Oversized logos: serve the small copies WordPress already made.
+ *    - Top-bar "Automation CoE" logo: 2048px file shown at 155px (and hidden on phones,
+ *      where it still downloaded): use the 300px copy and let hidden copies skip loading.
+ *    - Side "AutomationCOE" badge: 2560px file shown at ~270px: use the 768px copy. */
+add_filter( 'litespeed_buffer_before', function ( $html ) {
+	$html = str_replace(
+		'<img src="https://tecnoprism.com/wp-content/uploads/2026/07/automation-coe-logo.webp" alt="Automation CoE" style="width:155px;',
+		'<img loading="lazy" src="https://tecnoprism.com/wp-content/uploads/2026/07/automation-coe-logo-300x96.webp" alt="Automation CoE" style="width:155px;',
+		$html
+	);
+	$html = str_replace(
+		'uploads/2026/09/AutomationCOE-2-scaled.webp" alt="Automation CoE" width="2560" height="390"',
+		'uploads/2026/09/AutomationCOE-2-768x117.webp" alt="Automation CoE" width="768" height="117"',
+		$html
+	);
+	return $html;
+} );
